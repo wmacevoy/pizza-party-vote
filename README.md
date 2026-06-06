@@ -13,25 +13,25 @@ The "pizza" framing is a small concrete example. The intended targets are larger
 
 ## Core mechanism
 
-Every variant shares the same front end (approval + quorum) and differs only in the back end (allocation rule). The shared vocabulary:
+Every variant shares the same front end (approval + threshold) and differs only in the back end (allocation rule). The shared vocabulary:
 
 - `N_voters` voters, `N_options` options.
 - Each option has `slices(option)` (units delivered) and `price(option)` (units consumed).
 - `value(option) = slices(option) / price(option)`.
 - `M` is the total budget — money, seats, awards, whatever the resource is.
-- `quorum` is a minimum-approval threshold appropriate to the problem. There is no universal best rule; top-K, fixed fraction, and fixed integer are all reasonable choices.
+- `threshold` is the minimum approval level an option must clear to remain in the running. There is no universal best rule; top-K, fixed fraction, and fixed integer are all reasonable choices.
 
 ### Step 1 — Approval voting
 
-Each voter casts `preference(voter, option) ∈ {0, 1}`. Any number of approvals is allowed, including none or all.
+Each voter casts `approval(voter, option) ∈ {0, 1}`. Any number of approvals is allowed, including none or all.
 
-### Step 2 — Quorum filter
+### Step 2 — Threshold filter
 
 ```
-votes(option) = Σ_voter preference(voter, option)
+votes(option) = Σ_voter approval(voter, option)
 ```
 
-Options whose `votes(option)` falls below `quorum` are zeroed out (eliminated).
+Options whose `votes(option)` falls below `threshold` are zeroed out (eliminated).
 
 ### Step 3 — Allocation
 
@@ -63,7 +63,7 @@ Same as (A), but each selected option is removed from the candidate pool before 
 
 Use for representative bodies with `M > 1` seats, where randomness is politically unacceptable.
 
-1. Take the top `M` options by `votes(option)` after the quorum filter.
+1. Take the top `M` options by `votes(option)` after the threshold filter.
 2. Seat each. Their voting weight inside the body is proportional to their `votes(option)`.
 
 This is equivalent in expectation, over many internal votes, to drawing `M` seats with `P ∝ votes`. It pays the proportionality cost in per-person power concentration instead of in randomness.
@@ -72,15 +72,6 @@ Practical notes:
 - Procedural rules (majority-present, committee shares, quorum-to-conduct-business) become weight-based, not head-count-based. This requires deliberate redesign.
 - An optional weight cap (e.g., no individual exceeds `2/M` of total weight, excess redistributed by approval rank) protects against extreme concentration at some cost to proportionality.
 - A vote transform (`sqrt(votes)`, `log(votes)`) is another knob for muting dominance.
-
-## Distribution phase (optional)
-
-Only meaningful when the resource is divisible *among the voters themselves* — the pizza case. Skip for grants, contracts, and elections, where the resource is selected but not distributed back to voters.
-
-1. Rank voters by `expect_value(voter) = mean of value(option) over options they approved`. Non-voters get 0. Break ties randomly.
-2. Round-robin: each voter picks one remaining slice. If voting was public, the pick may optionally be restricted to the voter's approved options when any are still available.
-
-This rewards voters whose approvals reflect actual value judgments and mildly penalizes bullet-voting on low-value options.
 
 ## Use case mapping
 
@@ -92,7 +83,7 @@ This rewards voters whose approvals reflect actual value judgments and mildly pe
 | Single-seat election | B | 1 | 1 | 1 |
 | Multi-seat legislature | C (or B without replacement) | 1 | 1 | seats |
 
-Across all cases the front end (approval + quorum) is identical. Only the allocation rule changes.
+Across all cases the front end (approval + threshold) is identical. Only the allocation rule changes.
 
 ## Framing and prior art
 
@@ -104,14 +95,14 @@ The approval front end alone — without any lottery or weighting — already br
 
 ## Gaming considerations
 
-- **Bullet voting** (approving only your top choice) is the main residual strategy under approval voting. The lottery softens it; the optional distribution phase mildly penalizes it.
+- **Bullet voting** (approving only your top choice) is the main residual strategy under approval voting. The lottery softens it (no winner-take-all), so the cost of approving more options is low and the incentive to bullet-vote is correspondingly weak.
 - **Bid inflation** is the main attack in the grants/contracts case: claim more `slices` than you can deliver, to inflate the `value` term. Conventional procurement has the same problem and the same answer — bid verification and audit.
 - **Coalition coordination** is fair by construction: an aligned group is amplified in proportion to its actual size, no more.
-- **Quorum threshold** is the single biggest knob for the gaming/diversity tradeoff. Set too low it admits spoilers and noise; set too high it reverts toward majoritarian outcomes.
+- **Threshold** is the single biggest knob for the gaming/diversity tradeoff. Set too low it admits spoilers and noise; set too high it reverts toward majoritarian outcomes.
 
 ## Worked example (pizza)
 
-Setup: 5 voters, budget `M = $30`, quorum = 2.
+Setup: 5 voters, budget `M = $30`, threshold = 2.
 
 | Option | slices | price | value |
 |---|---|---|---|
@@ -130,11 +121,11 @@ Approvals:
 | Dave | Pepperoni, Hawaiian |
 | Eve | Veggie |
 
-### Step 1–2: votes and quorum
+### Step 1–2: votes and threshold
 
 `votes`: Cheese = 3, Pepperoni = 3, Veggie = 2, Hawaiian = 1.
 
-Hawaiian falls below quorum (1 < 2) and is eliminated.
+Hawaiian falls below threshold (1 < 2) and is eliminated.
 
 ### Step 3: allocation (rule A, with replacement)
 
@@ -154,28 +145,11 @@ Suppose **Pepperoni** is drawn. `M = $18 − $14 = $4`. Pool: 8 cheese + 8 peppe
 
 **Draw 3.** `M = $4 < min(price) = $12`. Loop terminates. $4 unspent.
 
-### Distribution phase
-
-`expect_value` per voter (mean `value` over the options they approved, using original `value` regardless of elimination):
-
-| Voter | expect_value |
-|---|---|
-| Alice | (0.667 + 0.571) / 2 = 0.619 |
-| Bob | 0.619 |
-| Dave | (0.571 + 0.500) / 2 = 0.536 |
-| Carol | (0.667 + 0.400) / 2 = 0.533 |
-| Eve | 0.400 |
-
-Alice and Bob tie; coin flip puts Alice first. Round-robin picks across 16 slices:
-
-- Rounds 1–3 (15 slices): each voter picks 3.
-- Round 4 (1 slice left): Alice picks the last.
-
-Result: Alice 4, Bob 3, Dave 3, Carol 3, Eve 3.
+Final order: 1 Cheese + 1 Pepperoni = 16 slices.
 
 Notes from this run:
 - The lottery means a different run could produce 2 Cheese, or 1 Cheese + 1 Veggie, etc. — each consistent with the approval distribution.
-- Eve approved only Veggie (eliminated and never drawn) and still receives slices — her expected-value rank is last, but she is not excluded.
+- Hawaiian had real support (Dave's approval) but did not clear the threshold and never entered the draws.
 - $4 left unspent is a feature, not a bug: no remaining option fits the budget.
 
 ## License

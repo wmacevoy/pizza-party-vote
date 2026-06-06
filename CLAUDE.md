@@ -16,8 +16,8 @@ The spec is a **framework**, not a single algorithm. There is one shared front e
 
 ### Shared front end
 
-1. **Approval voting.** Each voter sets `preference(voter, option) ∈ {0, 1}`. No ranking, no scoring.
-2. **Quorum filter.** `votes(option) = Σ preference(voter, option)`. Options below a parameterized quorum threshold are zeroed out.
+1. **Approval voting.** Each voter sets `approval(voter, option) ∈ {0, 1}`. No ranking, no scoring.
+2. **Threshold filter.** `votes(option) = Σ approval(voter, option)`. Options below a parameterized approval threshold are zeroed out.
 
 ### Allocation rules (pick one per problem)
 
@@ -25,16 +25,12 @@ The spec is a **framework**, not a single algorithm. There is one shared front e
 - **B. Stochastic without replacement.** Same as A, but selected options are removed before the next draw. Use case: sole-source contracts, single-seat elections, grants restricted to one award per recipient.
 - **C. Deterministic weighted top-M.** Take the top `M` options by `votes`. Seat each with voting weight proportional to its `votes`. Use case: multi-seat representative bodies where randomness is politically unacceptable. Equivalent in expectation to B over many roll-call votes.
 
-### Optional distribution phase
-
-Only meaningful when the resource is divisible *among the voters themselves* (the pizza case). Do **not** include it for grants, contracts, or elections. Rank voters by `expect_value = mean(value(approved options))`, ties random, round-robin pick. Use original `value` for ranking even if the option was eliminated by quorum.
-
 ## Implementation notes
 
 - **Formula:** `P ∝ votes × value` where `value = slices / price`. The multiplication is intentional — it rewards both popular and efficient options. An earlier draft of the spec wrote division; if you see `/` in any comment or code, it's a stale bug.
 - **RNG.** Both stochastic modes need a **seedable** RNG so runs are reproducible for tests. Don't reach for the language's default global RNG.
 - **Integer arithmetic.** Budgets, prices, slices, and seats are integers in the spec. Prefer integer types end-to-end to avoid rounding surprises in the budget loop's termination check.
-- **Quorum is a parameter.** No universal best rule (top-K, fixed fraction, fixed integer are all valid). Surface it in the API; don't hardcode.
+- **Threshold is a parameter.** No universal best rule (top-K, fixed fraction, fixed integer are all valid). Surface it in the API; don't hardcode.
 - **Mode C procedural shifts.** If implementing the weighted-representation mode, "majority present" and quorum-to-conduct-business become weight-based, not head-count-based. Optional cap and vote transforms (sqrt/log) are mentioned in the README as knobs to mute concentration.
 - **Mode B termination.** Loop ends when either `M` is exhausted or no remaining option has `price ≤ M` — both conditions matter.
 
