@@ -1,4 +1,4 @@
-# Pretty Good Pizza Voting
+# Pizza Party Voting
 
 A voting mechanism for repeated games with discrete outcomes, designed for simplicity, fairness, resistance to gaming, and avoidance of two-party (dichotomous) dynamics. The optimization target is average satisfaction across the voter population, not majority preference.
 
